@@ -9,7 +9,7 @@ def get_random_string():
     return ''.join(random.sample(string.lowercase, 5))
 
 def talker():
-    topic_name_prefix = os.getenv('HOST_NAME', 'chatter')
+    topic_name_prefix = os.getenv('HOSTNAME', 'chatter')
     topic_num = int(os.getenv('TOPIC_NUM', '5'))
     rospy.init_node('talker', anonymous=True)
     rate = rospy.Rate(10) # 10hz
