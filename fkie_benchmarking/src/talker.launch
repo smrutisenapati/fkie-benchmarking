@@ -1,4 +1,4 @@
 <launch>
-	<node name="talker" pkg="fkie_benchmarking" type="talker.py"  output="screen"/>
+	<node name="$(anon foo)" pkg="fkie_benchmarking" type="talker.py"  output="screen"/>
 </launch>
 
