@@ -9,6 +9,15 @@ from rapyuta_io import Client, ROSDistro, SimulationOptions, \
 AUTH_TOKEN = 'JxHZkPjMP1D78JbmDLGtvVJIy6fTtQXAVNPc3myE'
 PROJECT_ID = 'project-zxfsnuxqpomamdcjgvznhccv'
 
+# RIO_CONFIG=config.json python fkie_sdk --all <num_of_deployment>
+# RIO_CONFIG=config.json python fkie_sdk --provision <num_of_deployment>
+# RIO_CONFIG=config.json python fkie_sdk --deprovision
+
+# fill these for working of provision and deprovision
+routed_network_guid = 'net-myxmnninmomzicrmqdarnkbl'
+native_network_package_id = 'pkg-dhjbspopnpngnkklsjcpauhv'
+publisher_package_id = 'pkg-sdpsuvtwxoqzwhxnsrdblkjp'
+native_network_instance_id = 'inst-gkytjnwdwwszeqpdnsjjxwnn'
 
 def get_random_string(len):
     return ''.join(random.sample(string.lowercase, len))
@@ -226,33 +235,26 @@ def provision_pkg(pkg_id, count, prefix, instance_id, routed_network_guid):
     print('provisioned {} package'.format(prefix))
     return dep_status
 
-# RIO_CONFIG=config.json python fkie_benchmarking --all <num_of_deployment>
-# RIO_CONFIG=config.json python fkie_benchmarking --provision <num_of_deployment>
-# RIO_CONFIG=config.json python fkie_benchmarking --deprovision
 
-# fill these for working of provision and deprovision
-routed_network_guid = 'net-cpsrjmroeoksyqyjzgwdupgt'
-native_network_package_id = 'pkg-gsuzyzpoicuplnsiiongtvaj'
-publisher_package_id = 'pkg-wykxwsnlnhwbxdxmooksarxg'
 
 if __name__ == '__main__':
     client = Client(auth_token=AUTH_TOKEN, project=PROJECT_ID)
     if sys.argv[1] == '--provision':
         print('provision started...')
-        print('publisher_package_id: {} native_network_package_id:{}'.
-              format(publisher_package_id, native_network_package_id))
-        dep_status = provision_pkg(native_network_package_id, 1,
-                                   'nativenetwork', None, routed_network_guid)
-        instance_id = dep_status.componentInfo[0].componentInstanceID
+        # print('publisher_package_id: {} native_network_package_id:{}'.
+        #       format(publisher_package_id, native_network_package_id))
+        # dep_status = provision_pkg(native_network_package_id, 1,
+        #                            'nativenetwork', None, routed_network_guid)
+        # instance_id = dep_status.componentInfo[0].componentInstanceID
         provision_pkg(publisher_package_id, int(sys.argv[2]),
-                      'publisher', instance_id, routed_network_guid)
-        print('native network component instance id: ' + instance_id)
+                      'publisher', native_network_instance_id, routed_network_guid)
+        # print('native network component instance id: ' + instance_id)
     elif sys.argv[1] == '--deprovision':
         print('deprovision started...')
-        print('publisher_package_id: {} native_network_package_id:{}'.
-            format(publisher_package_id, native_network_package_id))
+        # print('publisher_package_id: {} native_network_package_id:{}'.
+        #     format(publisher_package_id, native_network_package_id))
         deprovison_all_deps(publisher_package_id)
-        deprovison_all_deps(native_network_package_id)
+        # deprovison_all_deps(native_network_package_id)
     elif sys.argv[1] == '--all':
         # creating build
         publisher_build = create_build()
@@ -277,4 +279,8 @@ if __name__ == '__main__':
         provision_pkg(publisher_package_id, int(sys.argv[2]), 'publisher',
                       native_deployement_comp_instance_id, routed_network_guid)
 
-        print('native network component instance id: ' + native_deployement_comp_instance_id)
+        print('publisher_build_guid ' + publisher_build_guid)
+        print('routed_network_guid ' + routed_network_guid)
+        print('native_network_package_id ' + native_network_package_id)
+        print('publisher_package_id ' + publisher_package_id)
+        print('native_deployement_comp_instance_id ' + native_deployement_comp_instance_id)
