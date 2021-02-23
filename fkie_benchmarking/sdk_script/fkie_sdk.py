@@ -2,6 +2,7 @@ import sys
 import time
 import random
 import string
+import json
 
 from rapyuta_io import Client, ROSDistro, SimulationOptions, \
     BuildOptions, CatkinOption, Build, DeploymentPhaseConstants
@@ -17,10 +18,10 @@ PROJECT_ID = 'project-zxfsnuxqpomamdcjgvznhccv'
 # RIO_CONFIG=config.json python fkie_sdk --deprovision
 
 # fill these for working of provision and deprovision
-native_network_guid = 'net-myxmnninmomzicrmqdarnkbl'
-native_network_package_id = 'pkg-dhjbspopnpngnkklsjcpauhv'
+native_network_guid = 'net-ksmcsdpwqdbezylelxvzbqow'
+# native_network_package_id = 'pkg-dhjbspopnpngnkklsjcpauhv'
 package_ids = []
-publisher_build_guid = ''
+publisher_build_guid = 'build-vpoiegzmgtrmzcoekiwpgsql'
 
 def get_random_string(len):
     return ''.join(random.sample(string.lowercase, len))
@@ -60,12 +61,12 @@ def create_routed_network():
     print('routed network created')
     return routed_network
 
-def create_native_network(rosDistro=ROSDistro.KINETIC):
+def create_native_network(rosDistro='kinetic'):
     print('creating native network...')
     parameters = Parameters(Limits(1, 4096))
-    native_network = NativeNetwork('rn' + '-' + get_random_string(2), Runtime.CLOUD, rosDistro,
+    native_network = NativeNetwork('nn' + '-' + get_random_string(2), Runtime.CLOUD, rosDistro,
                                    parameters=parameters)
-    client.create_native_network(native_network)
+    native_network = client.create_native_network(native_network)
     print('polling...')
     native_network.poll_native_network_till_ready()
     print('native network created')
@@ -156,7 +157,7 @@ def create_native_network_package():
     print('native network package created')
     return package_details
 
-def create_publisher_package(build_guid, topics, ros_distro='kinetic'):
+def create_publisher_package(build_guid, topics, start, end, ros_distro='kinetic'):
     print('creating publisher package...')
     publisher_manifest = {
         "name": "fkie-publisher"+ "-" + get_random_string(2),
@@ -177,15 +178,7 @@ def create_publisher_package(build_guid, topics, ros_distro='kinetic'):
                             "endpoints": []
                         },
                         "ros": {
-                            "topics": [
-                                {
-                                    "name": "/telemetry",
-                                    "qos": "low",
-                                    "compression": "",
-                                    "scoped": False,
-                                    "targeted": True
-                                }
-                            ],
+                            "topics": topics,
                             "services": [],
                             "actions": [],
                             "isROS": True,
@@ -209,7 +202,10 @@ def create_publisher_package(build_guid, topics, ros_distro='kinetic'):
                                 }
                             }
                         ],
-                        "parameters": [],
+                        "parameters": [
+                            {"default": str(end), "name": "END", "description": ""},
+                            {"default": str(start), "name": "START", "description": ""}
+                        ],
                         "rosBagJobDefs": []
                     }
                 ],
@@ -222,6 +218,7 @@ def create_publisher_package(build_guid, topics, ros_distro='kinetic'):
             }
         ]
     }
+    # pub_pkg = json.dumps(publisher_manifest)
     package_details = client.create_package(publisher_manifest)
     print('created publisher package...')
     return package_details
@@ -235,15 +232,15 @@ def deprovison_all_deps(pkg_ids):
             dep.deprovision()
             print('deprovisioned {}'.format(dep.name))
 
-def provision_pkg(count, native_network_guid, publisher_build_guid, topics):
+def provision_pkg(native_network_guid, publisher_build_guid, topics, start, end, ros_distro='kinetic'):
     package_ids = []
-    for i in range(count):
+    for i in range(start, end+1):
         print('creating package...')
-        publisher_package_details = create_publisher_package(publisher_build_guid, topics)
+        publisher_package_details = create_publisher_package(publisher_build_guid, topics, start, end, ros_distro)
         publisher_package_id = publisher_package_details['packageId']
         pkg = client.get_package(publisher_package_id)
         plan_id = pkg.plans[0].planId
-        package_ids.append(pkg.packageId)
+        package_ids.append(publisher_package_id)
         cfg = pkg.get_provision_configuration(plan_id)
         net = client.get_native_network(native_network_guid)
         cfg.add_native_network(net)
@@ -263,20 +260,18 @@ if __name__ == '__main__':
         start = int(sys.argv[2])
         end = int(sys.argv[3])
         count = end - start + 1
-
         # create publisher package
         topics = []
         for i in range(start, end + 1):
             topics.append({
-                "name": "/chatter-{}".format(i),
+                "name": "/chatter{}".format(i),
                 "qos": "low",
                 "compression": "",
                 "scoped": False,
                 "targeted": True
             })
-
         # provisioning publisher package
-        provision_pkg(count, native_network_guid, publisher_build_guid, topics)
+        provision_pkg(native_network_guid, publisher_build_guid, topics, start, end)
 
     elif sys.argv[1] == '--deprovision':
         print('deprovision started...')
@@ -284,17 +279,25 @@ if __name__ == '__main__':
 
     elif sys.argv[1] == '--all':
         dep_num = int(sys.argv[2])  # num of deployment
-        topic_num = int(sys.argv[3]) # number of topic each deployment
-        if not topic_num:
-            topic_num = 5
-        # creating build
-        publisher_build = create_build()
-        publisher_build_guid = publisher_build.guid
+        start_dep = 0  # start dep
+        topic_num = 5  # number of topic each deployment
+        ros_distro = ROSDistro.KINETIC # ros distro
+        if len(sys.argv) >= 4:
+            start_dep = int(sys.argv[3])
+        if len(sys.argv) >= 5:
+            topic_num = int(sys.argv[4])
+        if len(sys.argv) >= 6:
+            ros_distro = sys.argv[5]
 
-        # creating native network
-        native_network = create_native_network()
-        native_network_guid = native_network.guid
-        for n in range(dep_num):
+        # creating build
+        # publisher_build = create_build(ros_distro)
+        # publisher_build_guid = publisher_build.guid
+        #
+        # # creating native network
+        # native_network = create_native_network(ros_distro)
+        # native_network_guid = native_network.guid
+
+        for n in range(start_dep, dep_num):
             start = (n * topic_num) + 1
             end = (n * topic_num) + topic_num
             count = end - start + 1
@@ -302,17 +305,18 @@ if __name__ == '__main__':
             topics = []
             for i in range(start, end+1):
                 topics.append({
-                    "name": "/chatter-{}".format(i),
+                    "name": "/chatter{}".format(i),
                     "qos": "low",
                     "compression": "",
                     "scoped": False,
                     "targeted": False
                 })
             # provisioning publisher package
-            package_ids = provision_pkg(count, native_network_guid, publisher_build_guid, topics)
+            package_ids = provision_pkg(native_network_guid, publisher_build_guid, topics, start, end, ros_distro)
 
         print('publisher_build_guid ' + publisher_build_guid)
         print('native_network_guid ' + native_network_guid)
-        print('native_network_guid {}'.format(package_ids))
+        print('package_ids {}'.format(package_ids))
         print('last topic number {}'.format((dep_num * topic_num)))
+        print('last dep number {}'.format(dep_num))
 

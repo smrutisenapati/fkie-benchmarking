@@ -15,7 +15,7 @@ def talker():
     rate = rospy.Rate(10) # 10hz
     pub = []
     for i in range(start, end+1):
-        pub.append(rospy.Publisher('chatter-{}'.format(i), String, queue_size=10))
+        pub.append(rospy.Publisher('chatter{}'.format(i), String, queue_size=10))
     while not rospy.is_shutdown():
         hello_str = "hello world %s" % rospy.get_time()
         rospy.loginfo(hello_str)
